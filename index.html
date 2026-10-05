@@ -1,0 +1,415 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Flap Mosaic Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800&family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: the board is the hero, a control deck sits under it, then a strip of settled frames and the export panel. */
+:root{
+  --bg:#e3e5e7; --panel:#f1f2f3; --fg:#16181b; --muted:#59606a; --line:#c4c9cf; --accent:#2a66b8; --accent-ink:#ffffff;
+  --housing:#1b1b1c; --board:#0a0a0a; --flap:#161616; --flap-ink:#ebebeb;
+  --display:"Big Shoulders Display","Arial Narrow",Impact,sans-serif;
+  --body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#111315; --panel:#1a1d20; --fg:#e7e9eb; --muted:#9aa2ab; --line:#2d3237; --accent:#5f93e0; --accent-ink:#0b0d10; --housing:#232425; color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#111315; --panel:#1a1d20; --fg:#e7e9eb; --muted:#9aa2ab; --line:#2d3237; --accent:#5f93e0; --accent-ink:#0b0d10; --housing:#232425; color-scheme:dark}
+
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.5}
+.wrap{max-width:1120px;margin:0 auto;padding-inline:20px;padding-block:28px 56px;display:flex;flex-direction:column;gap:28px}
+header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px 32px}
+h1{font-family:var(--display);font-weight:800;font-size:clamp(2.4rem,6vw,4.2rem);line-height:.9;letter-spacing:.01em;text-transform:uppercase;margin:0;text-wrap:balance}
+.lede{max-width:56ch;color:var(--muted);margin:0}
+.eyebrow{font-family:var(--display);font-weight:600;text-transform:uppercase;letter-spacing:.12em;font-size:.95rem;color:var(--muted)}
+
+.housing{background:var(--housing);padding:clamp(8px,1.6vw,18px);border-radius:10px;box-shadow:0 18px 40px -22px rgba(0,0,0,.55)}
+.board{container-type:inline-size;background:var(--board);border-radius:4px;padding:clamp(8px,2.2vw,26px);display:grid;grid-template-columns:repeat(22,minmax(0,1fr));gap:clamp(2px,.42vw,5px)}
+.tile{aspect-ratio:.7;max-width:100%;border-radius:2px;position:relative;background:var(--flap);display:flex;align-items:center;justify-content:center;overflow:hidden}
+.tile::after{content:"";position:absolute;left:0;right:0;top:50%;height:1px;background:rgba(0,0,0,.5)}
+.tile span{font-family:var(--mono);font-weight:600;color:var(--flap-ink);font-size:2.6cqw;line-height:1}
+.status{display:flex;flex-wrap:wrap;justify-content:space-between;gap:6px 24px;font-family:var(--mono);font-size:.82rem;color:var(--muted);font-variant-numeric:tabular-nums;padding-top:10px}
+.status b{color:var(--fg);font-weight:600}
+
+.deck{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px}
+fieldset{border:1px solid var(--line);background:var(--panel);border-radius:8px;margin:0;padding:14px 16px 16px;display:flex;flex-direction:column;gap:12px;min-width:0}
+legend{font-family:var(--display);font-weight:600;text-transform:uppercase;letter-spacing:.12em;font-size:1rem;padding:0 6px}
+.field{display:flex;flex-direction:column;gap:4px;min-width:0}
+.field label{font-size:.8rem;color:var(--muted);letter-spacing:.02em}
+select,input[type=range]{width:100%;font:inherit;color:var(--fg)}
+textarea{width:100%;font-family:var(--mono);font-size:.85rem;text-transform:uppercase;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:7px 9px;resize:vertical;box-sizing:border-box}
+textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+select{background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:7px 9px}
+input[type=range]{accent-color:var(--accent)}
+.rangeval{font-family:var(--mono);font-size:.8rem;color:var(--fg);font-variant-numeric:tabular-nums}
+.inline{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+
+.transport{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+button{font:inherit;font-weight:500;border-radius:6px;padding:8px 14px;border:1px solid var(--line);background:var(--panel);color:var(--fg);cursor:pointer}
+button:hover{border-color:var(--fg)}
+button.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+button:focus-visible,select:focus-visible,input:focus-visible,.thumb:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.nowline{font-family:var(--mono);font-size:.85rem;color:var(--muted)}
+
+.section-head{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline;gap:6px 16px;margin-bottom:12px}
+.section-head p{margin:0;color:var(--muted);font-size:.85rem;max-width:60ch}
+.log{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+.thumb{background:none;border:1px solid var(--line);border-radius:6px;padding:6px;display:flex;flex-direction:column;gap:4px;text-align:left}
+.thumb canvas{width:100%;height:auto;display:block;border-radius:3px;background:#0a0a0a}
+.thumb span{font-size:.75rem;color:var(--muted);font-family:var(--mono)}
+.empty{color:var(--muted);font-size:.85rem}
+
+.export{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px}
+.codebox{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px;display:flex;flex-direction:column;gap:10px;min-width:0}
+pre{margin:0;overflow-x:auto;font-family:var(--mono);font-size:.74rem;line-height:1.45;color:var(--fg);white-space:pre}
+.notes{color:var(--muted);font-size:.82rem;max-width:72ch}
+.notes p{margin:0 0 6px}
+@media (prefers-reduced-motion: reduce){*{scroll-behavior:auto}}
+</style>
+
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <div class="eyebrow">22 × 6 split-flap board</div>
+      <h1>Flap Mosaic Studio</h1>
+    </div>
+    <p class="lede">Evolving tile mosaics for a Vestaboard, with short phrases set into the pattern. Preview how the flaps roll between frames, keep the frames you like, and copy the character codes to send to the board.</p>
+  </header>
+
+  <section aria-label="Board preview">
+    <div class="housing"><div class="board" id="board"></div></div>
+    <div class="status">
+      <span id="now">Loading</span>
+      <span id="stats"></span>
+    </div>
+  </section>
+
+  <div class="transport">
+    <button class="primary" id="play" type="button">Pause</button>
+    <button id="step" type="button">Next frame</button>
+    <button id="shuffle" type="button">Shuffle patterns</button>
+    <span class="nowline" id="phase"></span>
+  </div>
+
+  <div class="deck">
+    <fieldset>
+      <legend>Pattern</legend>
+      <div class="field"><label for="evo">Evolution</label>
+        <select id="evo">
+          <option value="patch">Patchwork: noise blends two patterns</option>
+          <option value="seq">Sequence: one pattern after another</option>
+          <option value="static">Hold one pattern</option>
+        </select></div>
+      <div class="field"><label for="pat">Pattern</label><select id="pat"><option value="-1">Auto</option></select></div>
+      <div class="field"><div class="inline"><label for="every">Hold each settled frame</label><span class="rangeval" id="everyv">6 s</span></div>
+        <input type="range" id="every" min="1" max="60" step="1" value="6"></div>
+      <div class="field"><div class="inline"><label for="drift">Patchwork drift per frame</label><span class="rangeval" id="driftv">0.35</span></div>
+        <input type="range" id="drift" min="0.05" max="1" step="0.05" value="0.35"></div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Color</legend>
+      <div class="field"><label for="cmode">Color mode</label>
+        <select id="cmode">
+          <option value="accent">Black, white, and accent</option>
+          <option value="bw">Black and white (dithered mid-tone)</option>
+          <option value="regions">Color by region</option>
+          <option value="duo">Two colors on ground</option>
+          <option value="spectrum">Spectrum bands</option>
+        </select></div>
+      <div class="field"><label for="accent">Accent</label><select id="accent"></select></div>
+      <div class="field"><label for="second">Second color</label><select id="second"></select></div>
+      <div class="field"><label for="ground">Ground</label>
+        <select id="ground"><option value="69">White</option><option value="70">Black</option></select></div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Phrases</legend>
+      <div class="field"><label for="wmode">Placement</label>
+        <select id="wmode">
+          <option value="stacked">Stacked plaque: one word per line, framed</option>
+          <option value="inlay">Inlay: phrase on one line, framed</option>
+          <option value="stepped">Stepped: words drift down across rows</option>
+          <option value="inline">Inline: phrase laid into the pattern</option>
+          <option value="off">No phrases</option>
+        </select></div>
+      <div class="field"><label for="worder">Order</label>
+        <select id="worder">
+          <option value="seq">In list order (reads like a slow poem)</option>
+          <option value="rand">Random</option>
+        </select></div>
+      <div class="field"><label for="wevery">Phrases appear</label>
+        <select id="wevery">
+          <option value="1">On every frame</option>
+          <option value="2" selected>Every second frame</option>
+          <option value="3">Every third frame</option>
+        </select></div>
+      <div class="field"><label for="wlist">Phrase list (one per line, two or three words each)</label>
+        <textarea id="wlist" rows="5" spellcheck="false"></textarea></div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Hardware</legend>
+      <div class="field"><label for="travel">Flap travel</label>
+        <select id="travel">
+          <option value="spool">Simulated spool (rolls forward through every flap)</option>
+          <option value="ideal">Idealized (tiles jump straight to target)</option>
+        </select></div>
+      <div class="field"><div class="inline"><label for="ms">Time per flap (assumed)</label><span class="rangeval" id="msv">60 ms</span></div>
+        <input type="range" id="ms" min="15" max="200" step="5" value="60"></div>
+      <div class="field"><label for="layout">Spool order</label>
+        <select id="layout">
+          <option value="codes">Character-code order (blank, letters, numbers, symbols, colors)</option>
+          <option value="colorsfirst">Colors first, then blank and characters</option>
+        </select></div>
+    </fieldset>
+  </div>
+
+  <section aria-labelledby="loghead">
+    <div class="section-head">
+      <h2 class="eyebrow" id="loghead" style="margin:0">Settled frames</h2>
+      <p>Every frame that lands is kept here, newest first. Select one to put it back on the board and pause.</p>
+    </div>
+    <div class="log" id="log"><div class="empty">Frames appear here as the board settles.</div></div>
+  </section>
+
+  <section aria-labelledby="exphead">
+    <div class="section-head">
+      <h2 class="eyebrow" id="exphead" style="margin:0">Send to the board</h2>
+      <p>Character codes for the frame currently on the board, as the 6 × 22 array the Vestaboard Local API takes.</p>
+    </div>
+    <div class="export">
+      <div class="codebox">
+        <div class="transport"><button id="copyjson" type="button">Copy codes</button></div>
+        <pre id="json"></pre>
+      </div>
+      <div class="codebox">
+        <div class="transport"><button id="copycurl" type="button">Copy curl command</button></div>
+        <pre id="curl"></pre>
+      </div>
+    </div>
+  </section>
+
+  <div class="notes">
+    <p>Color codes assumed: 63 red, 64 orange, 65 yellow, 66 green, 67 blue, 68 violet, 69 white, 70 black. Confirm these on your board model.</p>
+    <p>The physical order of flaps on the spool and the time per flap are not published. Time a full-board change on the real unit and set both controls to match, so the settle estimates line up with the hardware.</p>
+  </div>
+</div>
+
+<script>
+(function(){
+const W=22,H=6,N=W*H;
+const m=(a,n)=>((a%n)+n)%n;
+const HEX={63:'#c8372d',64:'#e07b25',65:'#efc02b',66:'#2f9a52',67:'#2a66b8',68:'#6f45b5',69:'#f2efe8',70:'#0d0d0d'};
+const CNAME={63:'Red',64:'Orange',65:'Yellow',66:'Green',67:'Blue',68:'Violet'};
+const GLYPH={0:''};
+'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').forEach((c,i)=>GLYPH[i+1]=c);
+'1234567890'.split('').forEach((c,i)=>GLYPH[27+i]=c);
+Object.assign(GLYPH,{37:'!',38:'@',39:'#',40:'$',41:'(',42:')',44:'-',46:'+',47:'&',48:'=',49:';',50:':',52:"'",53:'"',54:'%',55:',',56:'.',59:'/',60:'?',62:'°'});
+const CHARS=Object.keys(GLYPH).map(Number).sort((a,b)=>a-b);
+const COLORCODES=[63,64,65,66,67,68,69,70];
+let SPOOL=[],POS={};
+function buildSpool(kind){SPOOL=kind==='colorsfirst'?[...COLORCODES,...CHARS]:[...CHARS,...COLORCODES];POS={};SPOOL.forEach((c,i)=>POS[c]=i);}
+const roll=(a,b)=>m(POS[b]-POS[a],SPOOL.length);
+
+/* Pattern library: each returns 1 (figure), 0.5 (mid-tone) or 0 (ground) */
+const key=["#.######","#.#.....","#.#.###.","#.#...#.","#.#####.","#......."];
+const spi=["######.","#....#.","#.##.#.","#.#..#.","#.####.","#######"];
+const PATS=[
+['Greek key',(x,y)=>key[y][m(x,8)]==='#'?1:(y===5&&m(x,8)>1?.5:0)],
+['Square spiral',(x,y)=>spi[y][m(x,7)]==='#'?1:0],
+['Checkerboard',(x,y)=>(m(x,2)+y)%2],
+['Lattice',(x,y)=>(m(x+y,4)===0||m(x-y,4)===0)?1:(m(x+y,4)===2&&m(x-y,4)===2?.5:0)],
+['Harlequin',(x,y)=>((m(x+y,4)<2)!==(m(x-y,4)<2))?1:0],
+['Basketweave',(x,y)=>{const b=(Math.floor(x/2)+Math.floor(y/2))%2;return b?(m(x,2)===0?1:0):(m(y,2)===0?.5:0);}],
+['Dots',(x,y)=>(m(x,2)===0&&m(y,2)===0)?1:(m(x,2)===1&&m(y,2)===1?.5:0)],
+['Hex rosettes',(x,y)=>{const cy=y<3?1:4,cx=y<3?m(x,6):m(x+3,6);const dx=Math.abs(cx-2),dy=Math.abs(y-cy);if(!dx&&!dy)return .5;return(dx<=1&&dy<=1)||(dx===2&&!dy)?1:0;}],
+['Nested diamonds',(x,y)=>[1,.5,0][Math.floor(Math.abs(m(x,11)-5)+Math.abs(y-2.5))%3]],
+['Rhombus cubes',(x,y)=>{const u=m(x-y,6);return u<2?1:u<4?.5:0;}],
+['Chevrons',(x,y)=>{const s=m(x+[0,1,2,1][m(y,4)],6);return s<2?1:s<4?.5:0;}]
+];
+
+function hh(x,y,z){let n=x*374761393+y*668265263+z*2147483647;n=(n^(n>>13))*1274126177;return((n^(n>>16))>>>0)/4294967295;}
+function sm(t){return t*t*(3-2*t);}
+function noise(x,y,z){const xi=Math.floor(x),yi=Math.floor(y),zi=Math.floor(z),xf=sm(x-xi),yf=sm(y-yi),zf=sm(z-zi);let r=0;for(let a=0;a<2;a++)for(let c=0;c<2;c++)for(let e=0;e<2;e++)r+=(a?xf:1-xf)*(c?yf:1-yf)*(e?zf:1-zf)*hh(xi+a,yi+c,zi+e);return r;}
+
+const reduce=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
+const S={evo:'patch',fix:-1,A:0,B:3,t:0,count:0,cmode:'accent',accent:67,second:65,ground:69,travel:reduce?'ideal':'spool',ms:60,every:6,drift:.35,playing:true,settled:true,settledAt:performance.now(),
+  wmode:'stacked',worder:'seq',wevery:2,words:[],widx:0,placed:[]};
+const DEFAULT_WORDS=['STILL HERE','LAID BY HAND','WORN SMOOTH','STEP SOFTLY','SET IN STONE','ONE BY ONE','UNDER FOOT','HOLD STILL','TURN SLOWLY','EVEN NOW','REST HERE A WHILE','THE FLOOR REMEMBERS'];
+const CODE={' ':0};Object.entries(GLYPH).forEach(([c,g])=>{if(g)CODE[g]=+c;});
+function cleanWords(txt){return txt.toUpperCase().split(/\n+/).map(w=>w.split('').filter(ch=>ch in CODE).join('').replace(/\s+/g,' ').trim()).filter(Boolean).map(w=>w.split(' ').map(x=>x.slice(0,18)).join(' '));}
+function nextWord(){if(!S.words.length)return null;let w;if(S.worder==='rand'){w=S.words[Math.floor(Math.random()*S.words.length)];}else{w=S.words[S.widx%S.words.length];S.widx++;}return w;}
+const rint=(a,b)=>a+Math.floor(Math.random()*(b-a+1));
+S.frames=[];S.phrase='';
+function stepped(words){
+  const n=words.length,out=[];
+  const span=Math.min(H,n),gap=n>1?Math.max(1,Math.min(2,Math.floor((H-1)/(n-1)))):1;
+  const startY=rint(0,Math.max(0,H-1-gap*(n-1)));
+  let x=rint(0,3);
+  words.forEach((w,k)=>{const y=Math.min(H-1,startY+k*gap);x=Math.min(x,W-w.length);out.push({text:w,x:Math.max(0,x),y});x+=w.length+rint(1,3);});
+  if(n>span)return out.slice(0,H);
+  return out;
+}
+function placeWords(){
+  S.placed=[];S.frames=[];S.phrase='';
+  if(S.wmode==='off'||!S.words.length||S.count%S.wevery!==0)return;
+  const phrase=nextWord();if(!phrase)return;S.phrase=phrase;
+  const words=phrase.split(' ');
+  let mode=S.wmode;
+  if(mode==='inlay'&&phrase.length+2>W)mode='stacked';
+  if(mode==='inline'&&phrase.length>W)mode='stepped';
+  if(mode==='stacked'){const maxL=Math.max(...words.map(w=>w.length));if(words.length+2>H||maxL+2>W)mode='stepped';}
+  if(mode==='inlay'){
+    const pad=phrase.length+4<=W?2:1,bw=phrase.length+pad*2,bx=rint(0,W-bw),y=rint(1,4);
+    S.frames.push({bx,by:y-1,bw,bh:3});S.placed.push({text:phrase,x:bx+pad,y});
+  }else if(mode==='stacked'){
+    const maxL=Math.max(...words.map(w=>w.length)),bw=Math.min(W,maxL+4),bh=words.length+2,bx=rint(0,W-bw),by=rint(0,H-bh);
+    S.frames.push({bx,by,bw,bh});
+    words.forEach((w,k)=>S.placed.push({text:w,x:bx+Math.floor((bw-w.length)/2),y:by+1+k}));
+  }else if(mode==='stepped'){
+    S.placed=stepped(words);
+  }else{
+    S.placed.push({text:phrase,x:rint(0,W-phrase.length),y:rint(0,H-1)});
+  }
+}
+function overlayWords(g){
+  const ground=S.ground,frameC=S.cmode==='bw'?(ground===69?70:69):S.accent;
+  S.frames.forEach(f=>{for(let yy=f.by;yy<f.by+f.bh;yy++)for(let xx=f.bx;xx<f.bx+f.bw;xx++){if(yy<0||yy>=H||xx<0||xx>=W)continue;const edge=yy===f.by||yy===f.by+f.bh-1||xx===f.bx||xx===f.bx+f.bw-1;g[yy*W+xx]=edge?frameC:ground;}});
+  const framed=S.frames.length>0;
+  S.placed.forEach(p=>{for(let k=0;k<p.text.length;k++){const x=p.x+k;if(x<0||x>=W)continue;const ch=p.text[k];if(ch===' '){if(framed)g[p.y*W+x]=ground;continue;}g[p.y*W+x]=CODE[ch];}});
+  return g;
+}
+
+/* Controls */
+const $=id=>document.getElementById(id);
+const patSel=$('pat');PATS.forEach((p,i)=>{const o=document.createElement('option');o.value=i;o.textContent=p[0];patSel.appendChild(o);});
+[['accent',67],['second',65]].forEach(([id,def])=>{const s=$(id);Object.entries(CNAME).forEach(([c,n])=>{const o=document.createElement('option');o.value=c;o.textContent=n;if(+c===def)o.selected=true;s.appendChild(o);});});
+$('travel').value=S.travel;
+
+/* Board */
+const board=$('board'),tiles=[],spans=[];
+for(let i=0;i<N;i++){const d=document.createElement('div');d.className='tile';const s=document.createElement('span');d.appendChild(s);board.appendChild(d);tiles.push(d);spans.push(s);}
+let cur=new Array(N).fill(69),tgt=new Array(N).fill(69),delay=new Array(N).fill(0),acc=new Array(N).fill(0);
+function paint(i){const c=cur[i];if(HEX[c]){tiles[i].style.background=HEX[c];spans[i].textContent='';}else{tiles[i].style.background='';spans[i].textContent=GLYPH[c]||'';}}
+
+function colorFor(v,x,y,reg){
+  const g=S.ground,ink=g===69?70:69;
+  switch(S.cmode){
+    case 'bw': if(v===.5)v=(x+y)%2; return v?ink:g;
+    case 'accent': return v===1?ink:v===.5?S.accent:g;
+    case 'regions': if(v===.5)return reg?S.second:S.accent; return v?(reg?S.accent:ink):g;
+    case 'duo': return v===1?S.accent:v===.5?S.second:g;
+    default:{const R=[63,64,65,66,67,68];const k=m(Math.floor((x+S.t*8)/3)+(reg?3:0),6);return v===1?R[k]:v===.5?R[m(k+2,6)]:g;}
+  }
+}
+function compose(){const out=new Array(N);for(let y=0;y<H;y++)for(let x=0;x<W;x++){let reg=0;if(S.evo==='patch')reg=noise(x*.16,y*.22,S.t)>.5?1:0;const p=reg?S.B:S.A;out[y*W+x]=colorFor(PATS[p][1](x,y),x,y,reg);}return overlayWords(out);}
+function label(){const base=S.evo==='patch'?PATS[S.A][0]+' + '+PATS[S.B][0]:PATS[S.A][0];return S.phrase?base+' · "'+S.phrase+'"':base;}
+let curName='';
+
+function setTarget(g,name){
+  tgt=g.slice();curName=name||label();
+  let changed=0,maxR=0,total=0;
+  for(let i=0;i<N;i++){if(cur[i]!==tgt[i]){changed++;const r=roll(cur[i],tgt[i]);total+=r;if(r>maxR)maxR=r;}delay[i]=Math.floor(Math.random()*(S.travel==='ideal'?600:250));acc[i]=0;}
+  S.settled=changed===0;if(S.settled)S.settledAt=performance.now();
+  $('now').innerHTML='Now: <b></b>';$('now').querySelector('b').textContent=curName;
+  const est=(maxR*S.ms/1000);
+  $('stats').textContent=changed?(changed+' of 132 tiles changing · longest roll '+maxR+' flaps · about '+est.toFixed(1)+' s on the board'):'No tiles change this frame';
+  updateExport();
+}
+
+function randOther(a){let n;do{n=Math.floor(Math.random()*PATS.length);}while(n===a);return n;}
+function advance(){
+  S.t+=S.drift;S.count++;
+  if(S.evo==='patch'){if(S.fix>=0)S.A=S.fix;if(S.count%5===0){if(S.fix<0)S.A=S.B;S.B=randOther(S.A);}}
+  else if(S.evo==='seq'){S.A=S.fix>=0?S.fix:(S.A+1)%PATS.length;}
+  else if(S.fix>=0)S.A=S.fix;
+  placeWords();
+  setTarget(compose());
+}
+
+/* Settled frame log */
+const log=$('log');let frames=[];
+function drawThumb(cv,codes){const tw=14,th=20,gp=3,pad=6;cv.width=pad*2+W*tw+(W-1)*gp;cv.height=pad*2+H*th+(H-1)*gp;const g=cv.getContext('2d');g.fillStyle='#0a0a0a';g.fillRect(0,0,cv.width,cv.height);
+  g.font='600 13px "IBM Plex Mono", monospace';g.textAlign='center';g.textBaseline='middle';
+  for(let i=0;i<N;i++){const x=pad+(i%W)*(tw+gp),y=pad+Math.floor(i/W)*(th+gp);const c=codes[i];g.fillStyle=HEX[c]||'#161616';g.fillRect(x,y,tw,th);
+    if(!HEX[c]&&GLYPH[c]){g.fillStyle='#ebebeb';g.fillText(GLYPH[c],x+tw/2,y+th/2+1);}}}
+function logFrame(){
+  const last=frames[0];if(last&&last.codes.join()===cur.join())return;
+  frames.unshift({codes:cur.slice(),name:curName,time:new Date()});if(frames.length>12)frames.pop();
+  log.innerHTML='';
+  frames.forEach(f=>{const b=document.createElement('button');b.type='button';b.className='thumb';const cv=document.createElement('canvas');drawThumb(cv,f.codes);const s=document.createElement('span');s.textContent=f.time.toLocaleTimeString([], {hour:'numeric',minute:'2-digit',second:'2-digit'})+' · '+f.name;b.setAttribute('aria-label','Restore frame: '+f.name);b.append(cv,s);b.onclick=()=>{setPlaying(false);setTarget(f.codes,f.name);};log.appendChild(b);});
+}
+
+/* Export */
+function updateExport(){
+  const rows=[];for(let y=0;y<H;y++)rows.push('  ['+tgt.slice(y*W,y*W+W).join(',')+']');
+  $('json').textContent='[\n'+rows.join(',\n')+'\n]';
+  const compact=JSON.stringify(Array.from({length:H},(_,y)=>tgt.slice(y*W,y*W+W)));
+  $('curl').textContent="curl -X POST \\\n  -H \"X-Vestaboard-Local-Api-Key: YOUR_LOCAL_API_KEY\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '"+compact+"' \\\n  http://vestaboard.local:7000/local-api/message";
+}
+function copy(btn,el){const txt=el.textContent;const done=()=>{const o=btn.textContent;btn.textContent='Copied';setTimeout(()=>btn.textContent=o,1400);};
+  const fallback=()=>{const r=document.createRange();r.selectNodeContents(el);const s=getSelection();s.removeAllRanges();s.addRange(r);btn.textContent='Selected, press copy';setTimeout(()=>btn.textContent=btn.id==='copyjson'?'Copy codes':'Copy curl command',1800);};
+  try{navigator.clipboard.writeText(txt).then(done,fallback);}catch(e){fallback();}}
+$('copyjson').onclick=e=>copy(e.currentTarget,$('json'));
+$('copycurl').onclick=e=>copy(e.currentTarget,$('curl'));
+
+/* Loop */
+let last=performance.now();
+function tick(now){
+  const dt=Math.min(100,now-last);last=now;
+  if(!S.settled){
+    let done=true;
+    for(let i=0;i<N;i++){
+      if(cur[i]===tgt[i])continue;done=false;
+      if(delay[i]>0){delay[i]-=dt;continue;}
+      if(S.travel==='ideal'){cur[i]=tgt[i];paint(i);continue;}
+      acc[i]+=dt;let moved=false;
+      while(acc[i]>=S.ms&&cur[i]!==tgt[i]){acc[i]-=S.ms;cur[i]=SPOOL[(POS[cur[i]]+1)%SPOOL.length];moved=true;}
+      if(moved)paint(i);
+    }
+    if(done){S.settled=true;S.settledAt=now;logFrame();}
+  }else if(S.playing&&S.evo!=='static'&&now-S.settledAt>=S.every*1000){advance();}
+  const p=$('phase');
+  p.textContent=!S.playing?'Paused':S.settled?(S.evo==='static'?'Holding':'Next frame in '+Math.max(0,Math.ceil((S.every*1000-(now-S.settledAt))/1000))+' s'):'Flaps rolling';
+  requestAnimationFrame(tick);
+}
+
+function setPlaying(v){S.playing=v;$('play').textContent=v?'Pause':'Play';if(v)S.settledAt=performance.now();}
+$('play').onclick=()=>setPlaying(!S.playing);
+$('step').onclick=()=>advance();
+$('shuffle').onclick=()=>{S.A=Math.floor(Math.random()*PATS.length);S.B=randOther(S.A);S.t+=3;if(S.fix>=0){S.fix=-1;patSel.value='-1';}setTarget(compose());};
+$('evo').onchange=e=>{S.evo=e.target.value;setTarget(compose());};
+patSel.onchange=e=>{S.fix=+e.target.value;if(S.fix>=0){S.A=S.fix;if(S.B===S.A)S.B=randOther(S.A);}setTarget(compose());};
+$('every').oninput=e=>{S.every=+e.target.value;$('everyv').textContent=S.every+' s';};
+$('drift').oninput=e=>{S.drift=+e.target.value;$('driftv').textContent=S.drift.toFixed(2);};
+$('cmode').onchange=e=>{S.cmode=e.target.value;setTarget(compose());};
+$('accent').onchange=e=>{S.accent=+e.target.value;setTarget(compose());};
+$('second').onchange=e=>{S.second=+e.target.value;setTarget(compose());};
+$('ground').onchange=e=>{S.ground=+e.target.value;setTarget(compose());};
+$('travel').onchange=e=>{S.travel=e.target.value;};
+$('ms').oninput=e=>{S.ms=+e.target.value;$('msv').textContent=S.ms+' ms';};
+$('layout').onchange=e=>{buildSpool(e.target.value);setTarget(tgt,curName);};
+const wlist=$('wlist');wlist.value=DEFAULT_WORDS.join('\n');S.words=cleanWords(wlist.value);
+wlist.oninput=()=>{S.words=cleanWords(wlist.value);S.widx=0;};
+wlist.onchange=()=>{S.count=0;placeWords();setTarget(compose());};
+$('wmode').onchange=e=>{S.wmode=e.target.value;S.count=0;placeWords();setTarget(compose());};
+$('worder').onchange=e=>{S.worder=e.target.value;};
+$('wevery').onchange=e=>{S.wevery=+e.target.value;};
+
+/* Start in a settled, complete frame */
+buildSpool('codes');
+placeWords();
+const first=compose();cur=first.slice();for(let i=0;i<N;i++)paint(i);
+setTarget(first);logFrame();
+requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>
